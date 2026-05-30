@@ -6,20 +6,50 @@ import { supabase } from "@/lib/supabase";
 
 export default function Navbar() {
   const pathname = usePathname();
+
   const [open, setOpen] = useState(false);
   const [user, setUser] = useState<any>(null);
+  const [userProfile, setUserProfile] = useState<any>(null);
+
+  // Load profile from DB
+  async function loadProfile(userId: string) {
+    const { data } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", userId)
+      .maybeSingle();
+
+    setUserProfile(data || null);
+  }
 
   useEffect(() => {
-    async function getUser() {
-      const { data } = await supabase.auth.getUser();
-      setUser(data.user);
+    async function init() {
+      const { data } = await supabase.auth.getSession();
+      console.log("SESSION:", data.session);
+      const sessionUser = data.session?.user ?? null;
+
+      setUser(sessionUser);
+
+      if (sessionUser?.id) {
+        await loadProfile(sessionUser.id);
+      }
     }
 
-    getUser();
+    init();
 
-    const { data: listener } = supabase.auth.onAuthStateChange(() => {
-      getUser();
-    });
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      async (_event, session) => {
+        const sessionUser = session?.user ?? null;
+
+        setUser(sessionUser);
+
+        if (sessionUser?.id) {
+          await loadProfile(sessionUser.id);
+        } else {
+          setUserProfile(null);
+        }
+      }
+    );
 
     return () => {
       listener.subscription.unsubscribe();
@@ -33,6 +63,8 @@ export default function Navbar() {
 
   async function logout() {
     await supabase.auth.signOut();
+    setUser(null);
+    setUserProfile(null);
     window.location.href = "/";
   }
 
@@ -53,21 +85,33 @@ export default function Navbar() {
           <a href="/submit" className={linkClass("/submit")}>Submit</a>
           <a href="/admin" className={linkClass("/admin")}>Admin</a>
 
+          {/* USER STATE */}
           {!user ? (
             <>
-              <a href="/login" className="bg-zinc-800 px-4 py-2 rounded-xl hover:bg-zinc-700">
+              <a
+                href="/login"
+                className="bg-zinc-800 px-4 py-2 rounded-xl hover:bg-zinc-700"
+              >
                 Login
               </a>
 
-              <a href="/register" className="bg-yellow-500 text-black px-4 py-2 rounded-xl font-bold hover:bg-yellow-400">
+              <a
+                href="/register"
+                className="bg-yellow-500 text-black px-4 py-2 rounded-xl font-bold hover:bg-yellow-400"
+              >
                 Register
               </a>
             </>
           ) : (
             <>
-              <span className="text-zinc-400">
-                👤 {user.email}
-              </span>
+              <a
+                href={`/user/${user.id}`}
+                className="text-zinc-400 hover:text-yellow-400"
+              >
+                {userProfile?.username ||
+                  user?.email?.split("@")[0] ||
+                  "User"}
+              </a>
 
               <button
                 onClick={logout}
@@ -78,6 +122,7 @@ export default function Navbar() {
             </>
           )}
 
+          {/* DISCORD */}
           <a
             href="https://discord.com"
             target="_blank"
@@ -87,7 +132,7 @@ export default function Navbar() {
           </a>
         </nav>
 
-        {/* MOBILE */}
+        {/* MOBILE BUTTON */}
         <button
           onClick={() => setOpen(!open)}
           className="md:hidden text-white text-2xl"
@@ -117,9 +162,12 @@ export default function Navbar() {
             </>
           ) : (
             <>
-              <div className="text-zinc-400 text-sm">
-                {user.email}
-              </div>
+              <a
+                href={`/user/${user.id}`}
+                className="block text-yellow-400 text-center"
+              >
+                👤 {userProfile?.username || user?.email || "User"}
+              </a>
 
               <button
                 onClick={logout}
@@ -130,6 +178,7 @@ export default function Navbar() {
             </>
           )}
 
+          {/* DISCORD */}
           <a
             href="https://discord.com"
             target="_blank"

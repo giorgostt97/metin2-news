@@ -26,10 +26,13 @@ export default function RegisterPage() {
       return;
     }
 
-    const { error } = await supabase.auth.signUp({
-      email: email.trim(),
-      password,
-    });
+    const { data, error } = await supabase.auth.signUp({
+  email: email.trim(),
+  password,
+});
+
+console.log("SIGNUP DATA:", data);
+console.log("SIGNUP ERROR:", error);
 
     setLoading(false);
 

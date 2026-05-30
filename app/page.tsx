@@ -9,7 +9,12 @@ export default function Home() {
 
   useEffect(() => {
     async function loadServers() {
-      const { data } = await supabase.from("servers").select("*");
+      const { data, error } = await supabase
+  .from("servers")
+  .select("*");
+
+console.log("SERVERS DATA:", data);
+console.log("SERVERS ERROR:", error);
 
       if (data) {
         const sorted = [...data].sort((a, b) => {
@@ -67,7 +72,6 @@ export default function Home() {
 
           <p className="text-zinc-400 mt-4 max-w-2xl">
             Discover, vote and promote the best Metin2 private servers.
-            Find your next adventure and climb the rankings.
           </p>
 
           <div className="flex flex-wrap gap-4 mt-6">
@@ -75,14 +79,14 @@ export default function Home() {
               href="/submit"
               className="bg-yellow-500 text-black px-6 py-3 rounded-xl font-bold hover:bg-yellow-400"
             >
-              Submit Your Server
+              Submit Server
             </a>
 
             <a
               href="/news"
               className="bg-zinc-800 px-6 py-3 rounded-xl font-bold hover:bg-zinc-700"
             >
-              Latest News
+              News
             </a>
           </div>
         </div>
@@ -95,20 +99,6 @@ export default function Home() {
             onChange={(e) => setSearch(e.target.value)}
             className="bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 text-white w-full sm:w-64"
           />
-
-          <a
-            href="/news"
-            className="bg-zinc-800 px-5 py-3 rounded-xl font-bold hover:bg-zinc-700 text-center"
-          >
-            News
-          </a>
-
-          <a
-            href="/submit"
-            className="bg-yellow-500 text-black px-5 py-3 rounded-xl font-bold hover:bg-yellow-400 text-center"
-          >
-            Submit Server
-          </a>
         </div>
       </div>
 
@@ -123,10 +113,7 @@ export default function Home() {
 
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 text-center">
           <h2 className="text-4xl font-bold text-yellow-400">
-            {servers.reduce(
-              (total, server) => total + (server.votes || 0),
-              0
-            )}
+            {servers.reduce((t, s) => t + (s.votes || 0), 0)}
           </h2>
           <p className="text-zinc-500 mt-2">Total Votes</p>
         </div>
@@ -137,10 +124,10 @@ export default function Home() {
         </div>
       </div>
 
-      {/* FEATURED / PREMIUM SERVER */}
+      {/* FEATURED */}
       {servers.filter(s => s.tier === "premium" || s.tier === "featured").length > 0 && (
-        <div className="mb-10">
-          <h2 className="text-2xl font-bold text-yellow-400 mb-4">
+        <div className="mb-6">
+          <h2 className="text-xl font-bold text-yellow-400 mb-3">
             🔥 Featured Server
           </h2>
 
@@ -150,120 +137,92 @@ export default function Home() {
             .map((server) => (
               <div
                 key={server.id}
-                className="bg-gradient-to-r from-yellow-500/10 to-purple-500/10 border border-yellow-400 rounded-2xl overflow-hidden flex flex-col md:flex-row"
+                className="flex justify-between items-center p-4 rounded-xl border border-yellow-400 bg-yellow-500/10"
               >
-                {server.banner && (
-                  <img
-                    src={server.banner}
-                    alt={server.name}
-                    className="w-full md:w-1/3 h-48 object-cover"
-                  />
-                )}
-
-                <div className="p-6 flex-1">
-                  <h2 className="text-3xl font-bold text-yellow-400">
+                <div>
+                  <h2 className="text-xl font-bold text-yellow-400">
                     {server.name}
                   </h2>
-
-                  <p className="text-zinc-400 mt-2">
+                  <p className="text-zinc-400 text-sm">
                     {server.description}
                   </p>
-
-                  <div className="flex gap-4 mt-4">
-                    <a
-                      href={`/servers/${server.id}`}
-                      className="bg-yellow-500 text-black px-5 py-2 rounded-lg font-bold hover:bg-yellow-400"
-                    >
-                      View Server
-                    </a>
-
-                    <button
-                      onClick={() => voteServer(server.id, server.votes || 0)}
-                      className="bg-zinc-800 px-5 py-2 rounded-lg hover:bg-zinc-700"
-                    >
-                      ⭐ {server.votes || 0} votes
-                    </button>
-                  </div>
                 </div>
+
+                <a
+                  href={`/servers/${server.id}`}
+                  className="bg-yellow-500 text-black px-4 py-2 rounded-lg font-bold"
+                >
+                  View
+                </a>
               </div>
             ))}
         </div>
       )}
 
-      {/* SERVER GRID */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {/* LIST */}
+      <div className="flex flex-col gap-3">
 
         {filteredServers.map((server, index) => (
           <div
             key={server.id}
-            className={`rounded-2xl overflow-hidden border transition duration-300 hover:scale-[1.01] ${
+            className={`flex flex-col md:flex-row items-center justify-between gap-4 p-4 rounded-xl border transition hover:border-yellow-400 ${
               server.tier === "premium"
-                ? "bg-purple-500/10 border-purple-500 shadow-lg shadow-purple-500/20"
+                ? "bg-purple-500/10 border-purple-500"
                 : server.tier === "featured"
-                ? "bg-yellow-500/10 border-yellow-400 shadow-lg shadow-yellow-500/20"
-                : "bg-zinc-900 border-zinc-800 hover:border-yellow-400"
+                ? "bg-yellow-500/10 border-yellow-400"
+                : "bg-zinc-900 border-zinc-800"
             }`}
           >
-            {server.banner && (
-              <img
-                src={server.banner}
-                alt={server.name}
-                className="w-full h-40 md:h-48 object-cover"
-              />
-            )}
+            {/* LEFT */}
+            <div className="flex items-center gap-4 w-full md:w-auto">
 
-            <div className="p-5 md:p-6">
-              <div className="flex items-start justify-between gap-3 mb-3">
-                <div>
-                  <h2 className="text-xl md:text-2xl font-bold">
-                    {index === 0 && "🥇 "}
-                    {index === 1 && "🥈 "}
-                    {index === 2 && "🥉 "}
-                    #{index + 1} {server.name}
-                  </h2>
-
-                  <p className="text-zinc-500 text-sm mt-1">
-                    Region: {server.region}
-                  </p>
-                </div>
-
-                <div className="flex flex-col gap-1 items-end">
-                  {server.tier === "featured" && (
-                    <span className="bg-yellow-500 text-black px-3 py-1 rounded-full text-xs font-bold shadow-lg shadow-yellow-500/30">
-                      ⭐ FEATURED
-                    </span>
-                  )}
-
-                  {server.tier === "premium" && (
-                    <span className="bg-purple-500 text-white px-3 py-1 rounded-full text-xs font-bold shadow-lg shadow-purple-500/30">
-                      👑 PREMIUM
-                    </span>
-                  )}
-                </div>
+              <div className="text-2xl font-bold text-yellow-400 w-10 text-center">
+                {index === 0 && "🥇"}
+                {index === 1 && "🥈"}
+                {index === 2 && "🥉"}
+                {index + 1}
               </div>
 
-              <p className="text-zinc-400 mb-6 line-clamp-3">
-                {server.description}
-              </p>
+              <div>
+                <h2 className="text-lg font-bold">
+                  {server.name}
+                </h2>
 
-              <div className="flex items-center justify-between gap-3">
-                <button
-                  onClick={() => voteServer(server.id, server.votes || 0)}
-                  className="bg-yellow-500 text-black px-4 py-2 rounded-lg font-bold hover:bg-yellow-400 transition w-full"
-                >
-                  Vote ⭐ {server.votes || 0}
-                </button>
+                <p className="text-zinc-500 text-sm">
+                  {server.region} • {server.tier || "normal"}
+                </p>
 
-                <a
-                  href={`/servers/${server.id}`}
-                  className="bg-zinc-800 px-4 py-2 rounded-lg hover:bg-zinc-700 transition whitespace-nowrap"
-                >
-                  Details
-                </a>
+                <p className="text-zinc-400 text-sm line-clamp-1">
+                  {server.description}
+                </p>
               </div>
+            </div>
+
+            {/* STATS */}
+            <div className="flex gap-6 text-sm text-zinc-400">
+              <span>⭐ {server.votes || 0}</span>
+              <span>🔥 {server.tier}</span>
+            </div>
+
+            {/* ACTIONS */}
+            <div className="flex gap-2">
+              <button
+                onClick={() => voteServer(server.id, server.votes || 0)}
+                className="bg-yellow-500 text-black px-4 py-2 rounded-lg font-bold hover:bg-yellow-400"
+              >
+                Vote
+              </button>
+
+              <a
+                href={`/servers/${server.id}`}
+                className="bg-zinc-800 px-4 py-2 rounded-lg hover:bg-zinc-700"
+              >
+                Details
+              </a>
             </div>
           </div>
         ))}
+
       </div>
 
     </main>

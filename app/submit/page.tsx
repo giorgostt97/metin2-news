@@ -1,9 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
 export default function SubmitPage() {
+  const router = useRouter();
+
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [website, setWebsite] = useState("");
@@ -11,48 +14,72 @@ export default function SubmitPage() {
   const [serverType, setServerType] = useState("");
   const [logo, setLogo] = useState("");
   const [banner, setBanner] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  async function handleSubmit(e: any) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    setLoading(true);
 
+    // ✅ GET USER SAFELY
+    const { data, error: userError } = await supabase.auth.getUser();
+
+    const user = data?.user;
+
+    if (userError || !user) {
+      alert("You must be logged in to submit a server.");
+      setLoading(false);
+      return;
+    }
+
+    // ✅ INSERT SERVER
     const { error } = await supabase.from("servers").insert([
       {
         name,
         description,
         website,
         region,
-        Server_type: serverType,
+        server_type: serverType,
         logo,
         banner,
-        rating: 5,
         votes: 0,
+        rating: 5,
+
+        // 👇 IMPORTANT: OWNER SYSTEM
+        user_id: user.id,
       },
     ]);
 
+    setLoading(false);
+
     if (error) {
       alert(error.message);
-    } else {
-      alert("Server submitted!");
-
-      setName("");
-      setDescription("");
-      setWebsite("");
-      setRegion("");
-      setServerType("");
-      setLogo("");
-      setBanner("");
+      return;
     }
+
+    alert("Server submitted successfully!");
+
+    // RESET FORM
+    setName("");
+    setDescription("");
+    setWebsite("");
+    setRegion("");
+    setServerType("");
+    setLogo("");
+    setBanner("");
+
+    // OPTIONAL: redirect to homepage
+    router.push("/");
   }
 
   return (
-    <main className="min-h-screen bg-black text-white p-10">
-      <h1 className="text-4xl font-bold text-yellow-400 mb-10">
+    <main className="min-h-screen bg-black text-white p-6 md:p-10">
+      <h1 className="text-4xl font-bold text-yellow-400 mb-8">
         Submit Server
       </h1>
 
       <form
         onSubmit={handleSubmit}
-        className="max-w-2xl space-y-4"
+        className="max-w-2xl mx-auto flex flex-col gap-4"
       >
         <input
           type="text"
@@ -60,6 +87,7 @@ export default function SubmitPage() {
           value={name}
           onChange={(e) => setName(e.target.value)}
           className="w-full p-4 rounded-xl bg-zinc-900 border border-zinc-700"
+          required
         />
 
         <textarea
@@ -67,6 +95,7 @@ export default function SubmitPage() {
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           className="w-full p-4 rounded-xl bg-zinc-900 border border-zinc-700 h-40"
+          required
         />
 
         <input
@@ -79,7 +108,7 @@ export default function SubmitPage() {
 
         <input
           type="text"
-          placeholder="Region (EU/US)"
+          placeholder="Region (EU / US)"
           value={region}
           onChange={(e) => setRegion(e.target.value)}
           className="w-full p-4 rounded-xl bg-zinc-900 border border-zinc-700"
@@ -87,7 +116,7 @@ export default function SubmitPage() {
 
         <input
           type="text"
-          placeholder="Server Type (PvP/PvM)"
+          placeholder="Server Type (PvP / PvM)"
           value={serverType}
           onChange={(e) => setServerType(e.target.value)}
           className="w-full p-4 rounded-xl bg-zinc-900 border border-zinc-700"
@@ -111,9 +140,10 @@ export default function SubmitPage() {
 
         <button
           type="submit"
-          className="bg-yellow-500 text-black px-6 py-3 rounded-xl font-bold hover:bg-yellow-400"
+          disabled={loading}
+          className="bg-yellow-500 text-black px-6 py-3 rounded-xl font-bold hover:bg-yellow-400 disabled:opacity-50"
         >
-          Submit Server
+          {loading ? "Submitting..." : "Submit Server"}
         </button>
       </form>
     </main>
