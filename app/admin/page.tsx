@@ -2,20 +2,39 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { useRouter } from "next/navigation";
 
 export default function AdminPage() {
-  const [servers, setServers] = useState<any[]>([]);
+  const router = useRouter();
 
+  const [user, setUser] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  const [servers, setServers] = useState<any[]>([]);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [image, setImage] = useState("");
 
-  async function loadServers() {
-    const { data } = await supabase
-      .from("servers")
-      .select("*")
-      .order("votes", { ascending: false });
+  // AUTH CHECK
+  useEffect(() => {
+    async function checkUser() {
+      const { data } = await supabase.auth.getUser();
 
+      if (!data.user) {
+        router.push("/login");
+      } else {
+        setUser(data.user);
+      }
+
+      setLoading(false);
+    }
+
+    checkUser();
+  }, []);
+
+  // LOAD SERVERS
+  async function loadServers() {
+    const { data } = await supabase.from("servers").select("*");
     setServers(data || []);
   }
 
@@ -23,20 +42,24 @@ export default function AdminPage() {
     loadServers();
   }, []);
 
-  async function promoteServer(
-    id: string,
-    promoted: boolean
-  ) {
+  // SET TIER (NORMAL / FEATURED / PREMIUM)
+  async function setTier(id: string, currentTier: string) {
+    const next =
+      currentTier === "normal"
+        ? "featured"
+        : currentTier === "featured"
+        ? "premium"
+        : "normal";
+
     await supabase
       .from("servers")
-      .update({
-        promoted: !promoted,
-      })
+      .update({ tier: next })
       .eq("id", id);
 
     loadServers();
   }
 
+  // CREATE NEWS
   async function createNews(e: any) {
     e.preventDefault();
 
@@ -53,98 +76,68 @@ export default function AdminPage() {
     setTitle("");
     setContent("");
     setImage("");
+  }
 
-    loadServers();
+  if (loading) {
+    return (
+      <main className="min-h-screen bg-black text-white p-10">
+        Checking access...
+      </main>
+    );
   }
 
   return (
-    <main className="min-h-screen bg-black text-white p-4 md:p-10">
-      <div className="mb-10">
-        <h1 className="text-4xl md:text-5xl font-bold text-yellow-400">
-          Admin Dashboard
-        </h1>
+    <main className="min-h-screen bg-black text-white p-10">
 
-        <p className="text-zinc-500 mt-3">
-          Manage servers, promotions and news
-        </p>
-      </div>
+      <h1 className="text-5xl font-bold text-yellow-400 mb-2">
+        Admin Dashboard
+      </h1>
 
-      <div className="grid xl:grid-cols-2 gap-10">
+      <p className="text-zinc-500 mb-10">
+        Logged in as: {user?.email}
+      </p>
+
+      <div className="grid lg:grid-cols-2 gap-10">
+
         {/* SERVERS */}
         <div>
           <h2 className="text-3xl font-bold mb-6">
             Manage Servers
           </h2>
 
-          <div className="space-y-5">
-            {servers.map((server, index) => (
+          <div className="space-y-4">
+            {servers.map((server) => (
               <div
                 key={server.id}
-                className={`rounded-2xl overflow-hidden border ${
-                  server.promoted
-                    ? "border-yellow-400 bg-yellow-500/10"
-                    : "border-zinc-800 bg-zinc-900"
-                }`}
+                className="bg-zinc-900 p-4 rounded-xl border border-zinc-800 flex items-center justify-between"
               >
-                {server.banner && (
-                  <img
-                    src={server.banner}
-                    alt={server.name}
-                    className="w-full h-40 object-cover"
-                  />
-                )}
+                <div>
+                  <h3 className="font-bold">{server.name}</h3>
+                  <p className="text-zinc-500 text-sm">
+                    Votes: {server.votes || 0}
+                  </p>
 
-                <div className="p-5">
-                  <div className="flex items-start justify-between gap-4 mb-4">
-                    <div>
-                      <h3 className="text-2xl font-bold">
-                        #{index + 1} {server.name}
-                      </h3>
-
-                      <p className="text-zinc-500 mt-1">
-                        🌍 {server.region}
-                      </p>
-
-                      <p className="text-zinc-500">
-                        ⭐ Votes: {server.votes || 0}
-                      </p>
-                    </div>
-
-                    {server.promoted && (
-                      <span className="bg-yellow-400 text-black px-3 py-1 rounded-full text-xs font-bold">
-                        PROMOTED
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="flex flex-wrap gap-3">
-                    <button
-                      onClick={() =>
-                        promoteServer(
-                          server.id,
-                          server.promoted
-                        )
-                      }
-                      className={`px-5 py-3 rounded-xl font-bold transition ${
-                        server.promoted
-                          ? "bg-red-500 hover:bg-red-400"
-                          : "bg-yellow-500 text-black hover:bg-yellow-400"
-                      }`}
-                    >
-                      {server.promoted
-                        ? "Remove Promote"
-                        : "Promote Server"}
-                    </button>
-
-                    <a
-                      href={`/servers/${server.id}`}
-                      target="_blank"
-                      className="bg-zinc-800 px-5 py-3 rounded-xl hover:bg-zinc-700"
-                    >
-                      View Page
-                    </a>
-                  </div>
+                  <p className="text-xs text-zinc-400">
+                    Tier: {server.tier || "normal"}
+                  </p>
                 </div>
+
+                <button
+                  onClick={() => setTier(server.id, server.tier || "normal")}
+                  className={`px-4 py-2 rounded-lg font-bold ${
+                    server.tier === "premium"
+                      ? "bg-purple-500"
+                      : server.tier === "featured"
+                      ? "bg-yellow-500 text-black"
+                      : "bg-zinc-700"
+                  }`}
+                >
+                  {server.tier === "premium"
+                    ? "Premium"
+                    : server.tier === "featured"
+                    ? "Featured"
+                    : "Normal"}
+                </button>
               </div>
             ))}
           </div>
@@ -153,50 +146,43 @@ export default function AdminPage() {
         {/* NEWS */}
         <div>
           <h2 className="text-3xl font-bold mb-6">
-            Publish News
+            Post News
           </h2>
 
-          <form
-            onSubmit={createNews}
-            className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 space-y-5"
-          >
+          <form onSubmit={createNews} className="space-y-4">
+
             <input
               type="text"
               placeholder="News Title"
               value={title}
-              onChange={(e) =>
-                setTitle(e.target.value)
-              }
-              className="w-full p-4 rounded-xl bg-black border border-zinc-700"
+              onChange={(e) => setTitle(e.target.value)}
+              className="w-full p-4 rounded-xl bg-zinc-900 border border-zinc-700"
             />
 
             <textarea
               placeholder="News Content"
               value={content}
-              onChange={(e) =>
-                setContent(e.target.value)
-              }
-              className="w-full p-4 rounded-xl bg-black border border-zinc-700 h-48"
+              onChange={(e) => setContent(e.target.value)}
+              className="w-full p-4 rounded-xl bg-zinc-900 border border-zinc-700 h-40"
             />
 
             <input
               type="text"
               placeholder="Image URL"
               value={image}
-              onChange={(e) =>
-                setImage(e.target.value)
-              }
-              className="w-full p-4 rounded-xl bg-black border border-zinc-700"
+              onChange={(e) => setImage(e.target.value)}
+              className="w-full p-4 rounded-xl bg-zinc-900 border border-zinc-700"
             />
 
             <button
               type="submit"
-              className="w-full bg-yellow-500 text-black px-6 py-4 rounded-xl font-bold hover:bg-yellow-400 transition"
+              className="bg-yellow-500 text-black px-6 py-3 rounded-xl font-bold"
             >
               Publish News
             </button>
           </form>
         </div>
+
       </div>
     </main>
   );
